@@ -1,98 +1,123 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<%@ taglib uri="jakarta.tags.core" prefix="c" %>
-<%@ taglib uri="jakarta.tags.functions" prefix="fn" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <meta charset="UTF-8" />
-    <title>Tác Vụ Của Tôi</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tác Vụ Của Tôi - Web Scraper</title>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/style.css">
     <style>
-        body { font-family: sans-serif; margin: 24px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
-        th { background-color: #f6f6f6; }
-        .status-PENDING { color: gray; }
-        .status-PROCESSING { color: #1f6feb; font-weight: 600; }
-        .status-DONE { color: #0a7a0a; font-weight: 700; }
-        .status-FAILED { color: #b00020; font-weight: 700; }
-        .small { font-size: 0.9em; color: #666; }
-        .actions a { text-decoration: none; color: #0366d6; }
-
-        /* style nhẹ cho nút Xoá */
-        .btn-danger {
-            background-color: #d9534f;
-            border: none;
-            color: #fff;
-            padding: 4px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
         }
-        .btn-danger:hover {
-            background-color: #c9302c;
+        
+        .status-PENDING { background: var(--status-pending); color: white; }
+        .status-PROCESSING { background: var(--status-processing); color: white; }
+        .status-DONE { background: var(--status-done); color: white; }
+        .status-FAILED { background: var(--status-failed); color: white; }
+        
+        .task-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-secondary);
+        }
+        
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: var(--spacing-md);
         }
     </style>
 </head>
 <body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="${pageContext.request.contextPath}/" class="navbar-brand">Web Scraper</a>
+            <div class="flex gap-2">
+                <a href="${pageContext.request.contextPath}/" class="btn-home">Trang chủ</a>
+                <a href="${pageContext.request.contextPath}/create_task.jsp" class="btn btn-primary">+ Tạo tác vụ mới</a>
+            </div>
+        </div>
+    </nav>
 
-<h1>Danh Sách Tác Vụ</h1>
-<p><a href="${pageContext.request.contextPath}/create_task.jsp">Tạo tác vụ mới</a></p>
+    <div class="container">
+        <div class="page-header">
+            <h1 style="margin: 0;">Danh Sách Tác Vụ</h1>
+        </div>
 
-<table>
-    <thead>
-        <tr>
-            <th style="width: 80px;">ID</th>
-            <th>URL</th>
-            <th style="width: 140px;">Trạng thái</th>
-            <th style="width: 180px;">Ngày tạo</th>
-            <th style="width: 200px;">Hành động</th>
-        </tr>
-    </thead>
-    <tbody>
-        <c:forEach items="${tasks}" var="task">
-            <tr class="task-row" data-task-id="${task.id}">
-                <td>${task.id}</td>
-                <td class="task-url">${task.displayUrl}</td>
-                <td class="task-status">
-                    <span class="status-${task.status}">${task.status}</span>
-                </td>
-                <td class="task-created small">${task.createdAt}</td>
-                <td class="task-actions actions">
-                    <!-- Hành động cũ -->
-                    <c:if test="${task.status == 'DONE'}">
-                        <c:url var="detailUrl" value="/task-detail">
-                            <c:param name="id" value="${task.id}" />
-                        </c:url>
-                        <a href="${detailUrl}">Xem chi tiết</a>
-                    </c:if>
-                    <c:if test="${task.status == 'FAILED'}">
-                        <span class="small">Lỗi: ${task.error}</span>
-                    </c:if>
-
-                    <!-- Nút XOÁ (luôn hiển thị) -->
-                    <form method="post"
-                          action="${pageContext.request.contextPath}/delete-task"
-                          style="display:inline-block; margin-left:10px;">
-
-                        <input type="hidden" name="id" value="${task.id}" />
-
-                        <button type="submit"
-                                class="btn-danger"
-                                onclick="return confirm('Bạn có chắc muốn xoá task này?');">
-                            Xoá
-                        </button>
-                    </form>
-                </td>
-            </tr>
-        </c:forEach>
-
-        <c:if test="${empty tasks}">
-            <tr>
-                <td colspan="5">Bạn chưa có tác vụ nào.</td>
-            </tr>
-        </c:if>
-    </tbody>
-</table>
+        <c:choose>
+            <c:when test="${empty tasks || tasks.size() == 0}">
+                <div class="card empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <h3>Chưa có tác vụ nào</h3>
+                    <p>Bắt đầu bằng cách tạo một tác vụ mới để phân tích trang web!</p>
+                    <a href="${pageContext.request.contextPath}/create_task.jsp" class="btn btn-primary" style="margin-top: var(--spacing-md);">Tạo tác vụ đầu tiên</a>
+                </div>
+            </c:when>
+            <c:otherwise>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">ID</th>
+                                <th>URL</th>
+                                <th style="width: 150px;">Trạng thái</th>
+                                <th style="width: 200px;">Ngày tạo</th>
+                                <th style="width: 180px;">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <c:forEach items="${tasks}" var="task">
+                                <tr class="task-row" data-task-id="${task.id}">
+                                    <td>${task.id}</td>
+                                    <td>
+                                        <a href="${task.displayUrl}" target="_blank" style="color: var(--primary); word-break: break-all;">
+                                            ${task.displayUrl}
+                                        </a>
+                                    </td>
+                                    <td class="task-status">
+                                        <span class="badge status-${task.status}">
+                                            ${task.status}
+                                        </span>
+                                    </td>
+                                    <td>${task.createdAt}</td>
+                                    <td class="task-actions">
+                                        <c:if test="${task.status == 'DONE'}">
+                                            <a class="btn btn-outline" href="${pageContext.request.contextPath}/task-detail?id=${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                                                Xem chi tiết
+                                            </a>
+                                        </c:if>
+                                        <c:if test="${task.status == 'FAILED'}">
+                                            <span style="color: var(--status-failed); font-size: 0.875rem;">Lỗi: ${task.error}</span>
+                                        </c:if>
+                                        <form method="post" action="${pageContext.request.contextPath}/delete-task" style="display:inline-block;">
+                                            <input type="hidden" name="id" value="${task.id}">
+                                            <button type="submit" class="btn btn-danger" onclick="return confirm('Bạn có chắc muốn xóa tác vụ này?');" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                                                Xóa
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            </c:forEach>
+                        </tbody>
+                    </table>
+                </div>
+            </c:otherwise>
+        </c:choose>
+    </div>
 
 <!-- --- Globals from server (current user id) --- -->
 <script type="text/javascript">
@@ -132,7 +157,7 @@ function updateTaskRowSafe(taskId, data) {
     var statusCell = row.querySelector('.task-status');
     if (statusCell) {
         var st = data.status || '';
-        statusCell.innerHTML = '<span class="status-' + escapeHtml(st) + '">' + escapeHtml(st) + '</span>';
+        statusCell.innerHTML = '<span class="badge status-' + escapeHtml(st) + '">' + escapeHtml(st) + '</span>';
     }
 
     // cập nhật actions cell
@@ -141,24 +166,22 @@ function updateTaskRowSafe(taskId, data) {
         actionsCell.innerHTML = '';
         if (data.status === 'DONE') {
             var href = window.__CTX + '/task-detail?id=' + encodeURIComponent(taskId);
-            actionsCell.innerHTML = '<a href="' + href + '">Xem chi tiết</a>';
+            actionsCell.innerHTML = '<a class="btn btn-outline" href="' + href + '" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Xem chi tiết</a>';
         } else if (data.status === 'FAILED') {
             var err = data.error ? escapeHtml(data.error) : 'Lỗi';
-            actionsCell.innerHTML = '<span class="small">Lỗi: ' + err + '</span>';
-        } else {
-            // PENDING / PROCESSING: hiển thị placeholder
-            actionsCell.innerHTML = '<span class="small">--</span>';
+            actionsCell.innerHTML = '<span style="color: var(--status-failed); font-size: 0.875rem;">Lỗi: ' + err + '</span>';
         }
 
         // luôn thêm nút Xoá
         var formHtml =
             '<form method="post" ' +
             '      action="' + window.__CTX + '/delete-task" ' +
-            '      style="display:inline-block; margin-left:10px;">' +
+            '      style="display:inline-block;">' +
             '  <input type="hidden" name="id" value="' + escapeHtml(taskId) + '"/>' +
-            '  <button type="submit" class="btn-danger" ' +
-            '          onclick="return confirm(\\'Bạn có chắc muốn xoá task này?\\');">' +
-            '    Xoá' +
+            '  <button type="submit" class="btn btn-danger" ' +
+            '          onclick="return confirm(\\'Bạn có chắc muốn xóa tác vụ này?\\');" ' +
+            '          style="padding: 0.5rem 1rem; font-size: 0.875rem;">' +
+            '    Xóa' +
             '  </button>' +
             '</form>';
 
@@ -183,7 +206,7 @@ function updateTaskStatus() {
                 // update status
                 const statusCell = row.querySelector(".task-status");
                 statusCell.innerHTML =
-                    '<span class="status-' + data.status + '">' + data.status + '</span>';
+                    '<span class="badge status-' + data.status + '">' + data.status + '</span>';
 
                 // update actions
                 const actionsCell = row.querySelector(".task-actions");
@@ -191,16 +214,14 @@ function updateTaskStatus() {
                 if (data.status === "DONE") {
                     const url = window.__CTX + "/task-detail?id=" + taskId;
                     actionsCell.innerHTML =
-                        '<a href="' + url + '">Xem chi tiết</a>' +
+                        '<a class="btn btn-outline" href="' + url + '" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Xem chi tiết</a>' +
                         deleteButtonHtml(taskId);
                 } else if (data.status === "FAILED") {
                     actionsCell.innerHTML =
-                        '<span class="small">Lỗi: ' + (data.error || "Không rõ") + '</span>' +
+                        '<span style="color: var(--status-failed); font-size: 0.875rem;">Lỗi: ' + (data.error || "Không rõ") + '</span>' +
                         deleteButtonHtml(taskId);
                 } else {
-                    actionsCell.innerHTML =
-                        '<span class="small">--</span>' +
-                        deleteButtonHtml(taskId);
+                    actionsCell.innerHTML = deleteButtonHtml(taskId);
                 }
             })
             .catch(err => console.error("Polling error:", err));
@@ -211,11 +232,12 @@ function deleteButtonHtml(taskId) {
     return (
         '<form method="post" ' +
         '      action="' + window.__CTX + '/delete-task" ' +
-        '      style="display:inline-block; margin-left:10px;">' +
+        '      style="display:inline-block;">' +
         '  <input type="hidden" name="id" value="' + taskId + '"/>' +
-        '  <button type="submit" class="btn-danger" ' +
-        '          onclick="return confirm(\'Bạn có chắc muốn xoá task này?\');">' +
-        '    Xoá' +
+        '  <button type="submit" class="btn btn-danger" ' +
+        '          onclick="return confirm(\'Bạn có chắc muốn xóa tác vụ này?\');" ' +
+        '          style="padding: 0.5rem 1rem; font-size: 0.875rem;">' +
+        '    Xóa' +
         '  </button>' +
         '</form>'
     );
