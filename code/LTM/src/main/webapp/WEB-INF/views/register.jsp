@@ -42,6 +42,11 @@
                 <input type="password" id="password" name="password" placeholder="Tạo mật khẩu mạnh" required>
             </div>
             
+            <div class="form-group">
+                <label for="confirmpassword">Xác nhận mật khẩu</label>
+                <input type="password" id="confirmpassword" name="confirmpassword" placeholder="Xác nhận mật khẩu" required>
+            </div>
+            
             <button type="submit" class="btn btn-primary btn-block">Đăng Ký</button>
         </form>
 
