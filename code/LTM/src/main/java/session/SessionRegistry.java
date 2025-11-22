@@ -23,28 +23,19 @@ public class SessionRegistry {
         if (userId == null || newSession == null) return;
 
         HttpSession old = USER_SESSIONS.get(userId);
-
-        System.out.println("[SessionRegistry] registerSession userId=" + userId
-                + ", newSessionId=" + newSession.getId()
-                + ", oldSessionId=" + (old == null ? "null" : old.getId()));
-
         if (old != null && old != newSession) {
             try {
-                System.out.println("[SessionRegistry] Đang invalidate session CŨ ("
-                        + old.getId() + ") của userId = " + userId);
-                old.invalidate();
+                System.out.println("[SessionRegistry] Đang invalidate session CŨ "
+                        + old.getId() + " của userId=" + userId);
+                old.invalidate(); // sẽ kích hoạt SessionListener.sessionDestroyed
             } catch (IllegalStateException ignore) {
-                System.out.println("[SessionRegistry] Session cũ đã invalid sẵn: " + old.getId());
+                // Session đã bị invalid ở nơi khác
             }
-        } else if (old == newSession) {
-            System.out.println("[SessionRegistry] old == newSession (cùng một HttpSession) -> không invalidate.");
-        } else {
-            System.out.println("[SessionRegistry] Chưa có session cũ cho userId=" + userId + ".");
         }
 
         USER_SESSIONS.put(userId, newSession);
-        System.out.println("[SessionRegistry] Gắn session MỚI " + newSession.getId()
-                + " cho userId = " + userId);
+        System.out.println("[SessionRegistry] Gắn session MỚI "
+                + newSession.getId() + " cho userId=" + userId);
     }
 
     /**
