@@ -9,10 +9,11 @@ import java.util.stream.Collectors;
 public class RakeKeywordExtractor {
     public List<String> extract(String text, int numKeywords) {
         // Đơn giản hóa: loại bỏ các từ phổ biến, lấy các từ có tần suất cao nhất
+    	// chuyển thành chữ thường loại bỏ ký tự đặc biệt 
         String[] words = text.toLowerCase().replaceAll("[^a-zA-Zà-ỹÀ-Ỹ ]", "").split("\\s+");
         
         // Danh sách các từ dừng đơn giản
-        Set<String> stopWords = new HashSet<>(Arrays.asList("và", "là", "của", "có", "một", "trong", "được", "cho", "tại", "với", "các", "đã", "thì", "mà", "khi", "để", "the", "a", "an", "is", "in", "on", "of"));
+        Set<String> stopWords = new HashSet<>(Arrays.asList("và", "là", "của", "có", "một", "trong", "được", "cho", "tại", "với", "các", "đã", "thì", "mà", "khi", "để"));
         
         Map<String, Integer> wordFrequencies = new HashMap<>();
         for (String word : words) {
