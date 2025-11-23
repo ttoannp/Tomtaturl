@@ -44,7 +44,7 @@
             
             <div class="form-group">
                 <label for="confirmpassword">Xác nhận mật khẩu</label>
-                <input type="password" id="confirmpassword" name="confirmpassword" placeholder="Xác nhận mật khẩu" required>
+                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Xác nhận mật khẩu" required>
             </div>
             
             <button type="submit" class="btn btn-primary btn-block">Đăng Ký</button>
