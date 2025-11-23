@@ -190,42 +190,145 @@ function updateTaskRowSafe(taskId, data) {
 }
 </script>
 
-<!-- --- AJAX Polling Script (thay cho WebSocket) --- -->
+<!-- --- WebSocket Connection --- -->
 <script type="text/javascript">
-function updateTaskStatus() {
-    const rows = document.querySelectorAll(".task-row[data-task-id]");
+// Đảm bảo escapeHtml có sẵn trong scope này
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
-    rows.forEach(row => {
-        const taskId = row.getAttribute("data-task-id");
+let ws = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
-        fetch(window.__CTX + "/api/task-status?taskId=" + taskId)
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) return;
+function connectWebSocket() {
+    if (window.__CURRENT_USER_ID == null) {
+        console.warn('Không có user ID, không thể kết nối WebSocket');
+        return;
+    }
 
-                // update status
-                const statusCell = row.querySelector(".task-status");
-                statusCell.innerHTML =
-                    '<span class="badge status-' + data.status + '">' + data.status + '</span>';
-
-                // update actions
-                const actionsCell = row.querySelector(".task-actions");
-
-                if (data.status === "DONE") {
-                    const url = window.__CTX + "/task-detail?id=" + taskId;
-                    actionsCell.innerHTML =
-                        '<a class="btn btn-outline" href="' + url + '" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Xem chi tiết</a>' +
-                        deleteButtonHtml(taskId);
-                } else if (data.status === "FAILED") {
-                    actionsCell.innerHTML =
-                        '<span style="color: var(--status-failed); font-size: 0.875rem;">Lỗi: ' + (data.error || "Không rõ") + '</span>' +
-                        deleteButtonHtml(taskId);
+    // Xác định WebSocket URL (ws:// hoặc wss://)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + window.location.host + window.__CTX + '/task-ws';
+    
+    console.log('[WebSocket] Đang kết nối đến:', wsUrl);
+    
+    try {
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = function() {
+            console.log('[WebSocket] Đã kết nối thành công');
+            console.log('[WebSocket] User ID:', window.__CURRENT_USER_ID);
+            reconnectAttempts = 0;
+        };
+        
+        ws.onmessage = function(event) {
+            try {
+                console.log('[WebSocket] Raw message received:', event.data);
+                const data = JSON.parse(event.data);
+                console.log('[WebSocket] Parsed message:', data);
+                
+                // Cập nhật UI với dữ liệu từ WebSocket
+                if (data.taskId && data.status) {
+                    console.log('[WebSocket] Cập nhật task:', data.taskId, 'status:', data.status);
+                    updateTaskFromWebSocket(data);
                 } else {
-                    actionsCell.innerHTML = deleteButtonHtml(taskId);
+                    console.warn('[WebSocket] Message thiếu taskId hoặc status:', data);
                 }
-            })
-            .catch(err => console.error("Polling error:", err));
-    });
+            } catch (e) {
+                console.error('[WebSocket] Lỗi parse message:', e, 'Raw data:', event.data);
+            }
+        };
+        
+        ws.onerror = function(error) {
+            console.error('[WebSocket] Lỗi:', error);
+        };
+        
+        ws.onclose = function() {
+            console.log('[WebSocket] Đã đóng kết nối');
+            
+            // Tự động reconnect nếu chưa vượt quá số lần thử
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000); // Exponential backoff, max 30s
+                console.log('[WebSocket] Thử kết nối lại sau ' + delay + 'ms (lần ' + reconnectAttempts + ')');
+                setTimeout(connectWebSocket, delay);
+            } else {
+                console.warn('[WebSocket] Đã vượt quá số lần thử kết nối, chuyển sang polling');
+                // Fallback to polling nếu WebSocket không kết nối được
+                startPollingFallback();
+            }
+        };
+        
+    } catch (e) {
+        console.error('[WebSocket] Lỗi khi tạo kết nối:', e);
+        // Fallback to polling
+        startPollingFallback();
+    }
+}
+
+function updateTaskFromWebSocket(data) {
+    const taskId = data.taskId;
+    const status = data.status;
+    const error = data.error || null;
+    
+    console.log('[updateTaskFromWebSocket] Bắt đầu cập nhật taskId:', taskId, 'status:', status);
+    
+    // Chuyển taskId sang string để so sánh với data-task-id (luôn là string)
+    const row = document.querySelector(".task-row[data-task-id='" + taskId + "']");
+    if (!row) {
+        console.warn('[updateTaskFromWebSocket] Không tìm thấy row cho taskId:', taskId);
+        console.log('[updateTaskFromWebSocket] Các rows hiện có:', 
+            Array.from(document.querySelectorAll(".task-row")).map(r => r.getAttribute("data-task-id")));
+        return;
+    }
+    
+    console.log('[updateTaskFromWebSocket] Tìm thấy row, đang cập nhật...');
+    
+    // Cập nhật status badge
+    const statusCell = row.querySelector(".task-status");
+    if (statusCell) {
+        const badgeClass = 'status-' + status;
+        // Status chỉ là DONE/FAILED/PENDING/PROCESSING, không cần escape
+        statusCell.innerHTML = '<span class="badge ' + badgeClass + '">' + status + '</span>';
+        console.log('[updateTaskFromWebSocket] Đã cập nhật status badge:', status);
+    } else {
+        console.warn('[updateTaskFromWebSocket] Không tìm thấy .task-status cell');
+    }
+    
+    // Cập nhật actions cell
+    const actionsCell = row.querySelector(".task-actions");
+    if (actionsCell) {
+        actionsCell.innerHTML = '';
+        
+        if (status === "DONE") {
+            const url = window.__CTX + "/task-detail?id=" + taskId;
+            actionsCell.innerHTML =
+                '<a class="btn btn-outline" href="' + url + '" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Xem chi tiết</a>' +
+                deleteButtonHtml(taskId);
+            console.log('[updateTaskFromWebSocket] Đã cập nhật actions cho DONE');
+        } else if (status === "FAILED") {
+            const errMsg = error ? escapeHtml(error) : "Không rõ";
+            actionsCell.innerHTML =
+                '<span style="color: var(--status-failed); font-size: 0.875rem;">Lỗi: ' + errMsg + '</span>' +
+                deleteButtonHtml(taskId);
+            console.log('[updateTaskFromWebSocket] Đã cập nhật actions cho FAILED');
+        } else {
+            // PENDING hoặc PROCESSING: chỉ hiển thị nút Xóa
+            actionsCell.innerHTML = deleteButtonHtml(taskId);
+            console.log('[updateTaskFromWebSocket] Đã cập nhật actions cho', status);
+        }
+    } else {
+        console.warn('[updateTaskFromWebSocket] Không tìm thấy .task-actions cell');
+    }
+    
+    console.log('[updateTaskFromWebSocket] Hoàn thành cập nhật taskId:', taskId);
 }
 
 function deleteButtonHtml(taskId) {
@@ -243,11 +346,60 @@ function deleteButtonHtml(taskId) {
     );
 }
 
-// Kiểm tra mỗi 3 giây
-setInterval(updateTaskStatus, 3000);
+// Fallback: Polling nếu WebSocket không hoạt động
+let pollingInterval = null;
 
-// Gọi ngay lúc load trang
-updateTaskStatus();
+function startPollingFallback() {
+    if (pollingInterval) return; // Đã có polling rồi
+    
+    console.log('[Polling] Bắt đầu polling fallback...');
+    
+    function pollTaskStatus() {
+        const rows = document.querySelectorAll(".task-row[data-task-id]");
+        
+        rows.forEach(row => {
+            const taskId = row.getAttribute("data-task-id");
+            
+            fetch(window.__CTX + "/api/task-status?taskId=" + taskId)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) return;
+                    
+                    // Chỉ update nếu status thay đổi
+                    const currentStatus = row.querySelector(".task-status .badge")?.textContent.trim();
+                    if (currentStatus !== data.status) {
+                        updateTaskFromWebSocket({
+                            taskId: data.id,
+                            status: data.status,
+                            error: data.error || null
+                        });
+                    }
+                })
+                .catch(err => console.error("[Polling] Lỗi:", err));
+        });
+    }
+    
+    // Poll mỗi 5 giây (chậm hơn WebSocket)
+    pollingInterval = setInterval(pollTaskStatus, 5000);
+    pollTaskStatus(); // Gọi ngay lần đầu
+}
+
+// Kết nối WebSocket khi trang load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', connectWebSocket);
+} else {
+    connectWebSocket();
+}
+
+// Đóng WebSocket khi trang unload
+window.addEventListener('beforeunload', function() {
+    if (ws) {
+        ws.close();
+    }
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+});
 </script>
 
 

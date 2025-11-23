@@ -27,7 +27,9 @@ public class TaskSocket {
 
     @OnClose
     public void onClose(Session session) {
-        userSessions.values().remove(session);
+        // Tìm và xóa session khỏi map
+        userSessions.entrySet().removeIf(entry -> entry.getValue().equals(session));
+        System.out.println("[WebSocket] User disconnected. Remaining sessions: " + userSessions.size());
     }
 
     @OnError
@@ -41,9 +43,19 @@ public class TaskSocket {
             if (s != null && s.isOpen()) {
                 s.getBasicRemote().sendText(message);
                 System.out.println("[WebSocket] Sent to user " + userId + ": " + message);
+            } else {
+                if (s == null) {
+                    System.out.println("[WebSocket] WARNING: Không tìm thấy session cho userId " + userId + ". Active sessions: " + userSessions.keySet());
+                } else if (!s.isOpen()) {
+                    System.out.println("[WebSocket] WARNING: Session cho userId " + userId + " đã đóng. Đang xóa khỏi map...");
+                    userSessions.remove(userId);
+                }
             }
         } catch (Exception e) {
+            System.err.println("[WebSocket] Lỗi khi gửi message cho user " + userId + ": " + e.getMessage());
             e.printStackTrace();
+            // Xóa session nếu có lỗi
+            userSessions.remove(userId);
         }
     }
 }
